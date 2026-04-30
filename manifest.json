@@ -1,0 +1,14 @@
+{
+  "name": "행사 입장 스캐너",
+  "short_name": "입장 스캐너",
+  "description": "행사장 QR 입장 확인 스캐너",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

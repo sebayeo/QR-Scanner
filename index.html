@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/svg+xml" href="icon.svg" />
+  <link rel="apple-touch-icon" href="icon.svg" />
+  <title>행사 입장 스캐너</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- ─────────────── 설정 화면 (최초 1회) ─────────────── -->
+  <section id="screen-config" class="screen">
+    <div class="config-box">
+      <h1>초기 설정</h1>
+      <p class="muted">Apps Script 웹앱 URL을 입력하세요.<br/>설정은 이 기기에만 저장됩니다.</p>
+      <input id="apiUrl" type="url" placeholder="https://script.google.com/macros/s/..../exec" autocomplete="off" />
+      <button id="saveConfig" class="btn primary">저장하고 시작</button>
+      <p class="muted small">잘못 입력했다면 설정 화면 우측 상단 ⚙ 버튼에서 다시 변경할 수 있습니다.</p>
+    </div>
+  </section>
+
+  <!-- ─────────────── 메인: 행사 선택 ─────────────── -->
+  <section id="screen-events" class="screen hidden">
+    <header class="topbar">
+      <h1>행사 선택</h1>
+      <button id="reloadEvents" class="icon-btn" title="새로고침">↻</button>
+      <button id="openSettings" class="icon-btn" title="설정">⚙</button>
+    </header>
+    <div id="eventList" class="event-list"></div>
+  </section>
+
+  <!-- ─────────────── 액션: 스캔 / 통계 ─────────────── -->
+  <section id="screen-actions" class="screen hidden">
+    <header class="topbar">
+      <button class="icon-btn" data-back="screen-events">←</button>
+      <h1 id="actionsTitle">-</h1>
+      <span style="width:36px"></span>
+    </header>
+    <div class="action-grid">
+      <button class="big-action scan" data-go="screen-scan">
+        <div class="big-icon">📷</div>
+        <div class="big-label">스캔하기</div>
+        <div class="big-sub">QR을 카메라에 비추세요</div>
+      </button>
+      <button class="big-action stats" data-go="screen-stats">
+        <div class="big-icon">📊</div>
+        <div class="big-label">통계 확인하기</div>
+        <div class="big-sub">성별·연령 분포</div>
+      </button>
+    </div>
+    <div class="action-summary" id="actionsSummary"></div>
+  </section>
+
+  <!-- ─────────────── 스캐너 ─────────────── -->
+  <section id="screen-scan" class="screen hidden scan-screen">
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="scanCanvas" hidden></canvas>
+
+    <div class="scan-overlay">
+      <header class="topbar transparent">
+        <button class="icon-btn light" data-back="screen-actions">←</button>
+        <h1 id="scanTitle" class="light">-</h1>
+        <button id="flipCamera" class="icon-btn light" title="카메라 전환">⇄</button>
+      </header>
+
+      <div class="counter-card">
+        <div class="counter-label">실시간 입장 카운트</div>
+        <div class="counter-value"><span id="counterEntered">0</span><span class="counter-total">/<span id="counterTotal">0</span></span></div>
+      </div>
+
+      <div class="scan-frame">
+        <div class="scan-feedback" id="scanFeedback">
+          <div class="scan-feedback-icon" id="scanFeedbackIcon"></div>
+        </div>
+      </div>
+
+      <div id="scanStatus" class="scan-status hidden"></div>
+    </div>
+
+    <!-- 스캔 결과 모달 -->
+    <div id="resultModal" class="modal hidden">
+      <div class="modal-card" id="resultCard">
+        <div class="modal-icon" id="resultIcon"></div>
+        <div class="modal-title" id="resultTitle"></div>
+        <div class="modal-body" id="resultBody"></div>
+        <button class="btn primary block" id="resultClose">계속 스캔</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────── 통계 ─────────────── -->
+  <section id="screen-stats" class="screen hidden">
+    <header class="topbar">
+      <button class="icon-btn" data-back="screen-actions">←</button>
+      <h1 id="statsTitle">-</h1>
+      <button id="reloadStats" class="icon-btn" title="새로고침">↻</button>
+    </header>
+
+    <div class="stats-summary" id="statsSummary"></div>
+
+    <div class="chart-block">
+      <h2>성별 비율</h2>
+      <div class="chart-wrap"><canvas id="genderChart"></canvas></div>
+      <div class="chart-legend" id="genderLegend"></div>
+    </div>
+
+    <div class="chart-block">
+      <h2>연령 분포</h2>
+      <div class="chart-wrap tall"><canvas id="ageChart"></canvas></div>
+    </div>
+  </section>
+
+  <!-- ─────────────── 토스트 ─────────────── -->
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- ─────────────── 외부 라이브러리 ─────────────── -->
+  <!-- jsQR : 약 43KB, BarcodeDetector 미지원 브라우저용 폴백 -->
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+  <!-- Chart.js : 통계용 -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
