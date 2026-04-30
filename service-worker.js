@@ -1,9 +1,12 @@
 /* 캐시 전략:
- *  - 정적 셸(HTML/CSS/JS/외부 라이브러리)은 cache-first → 빠른 재실행 + 약간의 오프라인 회복력
- *  - API 요청(GAS 도메인)은 캐시하지 않음 (항상 최신 데이터)
+ *  - 같은 출처(앱 코드 = HTML/JS/CSS/JSON)는 network-first → 항상 최신 코드 적용
+ *  - 외부 라이브러리(jsQR, Chart.js)는 cache-first → 빠른 재실행
+ *  - GAS API 는 캐시 X (항상 최신 데이터)
+ *
+ * 업데이트 방법: CACHE_NAME 의 버전을 올리면 기존 캐시가 폐기되고 새 셸을 가져옵니다.
  */
 
-const CACHE_NAME = 'event-scanner-v1';
+const CACHE_NAME = 'event-scanner-v3';   // ← 변경 시 버전을 올리세요
 const SHELL = [
   './',
   './index.html',
@@ -25,30 +28,40 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
       Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
-    )
+    ).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
   const req = event.request;
+  if (req.method !== 'GET') return;
   const url = new URL(req.url);
 
-  // GAS API 호출은 절대 캐시 X
+  // GAS API 는 절대 캐시하지 않음
   if (url.hostname.includes('script.google.com') || url.hostname.includes('googleusercontent.com')) {
     return; // 브라우저 기본 동작
   }
 
-  if (req.method !== 'GET') return;
+  // 같은 출처 (앱 코드) → network-first. 업데이트가 즉시 반영됨.
+  if (url.origin === self.location.origin) {
+    event.respondWith(
+      fetch(req).then((res) => {
+        if (res && res.status === 200) {
+          const copy = res.clone();
+          caches.open(CACHE_NAME).then((c) => c.put(req, copy)).catch(() => {});
+        }
+        return res;
+      }).catch(() => caches.match(req))
+    );
+    return;
+  }
 
+  // 외부 (CDN 라이브러리) → cache-first
   event.respondWith(
     caches.match(req).then((cached) => {
       if (cached) return cached;
       return fetch(req).then((res) => {
-        // 같은 출처거나 SHELL에 포함된 외부 라이브러리만 캐시
-        const sameOrigin = url.origin === self.location.origin;
-        const isShellExternal = SHELL.includes(req.url);
-        if ((sameOrigin || isShellExternal) && res && res.status === 200) {
+        if (res && res.status === 200) {
           const copy = res.clone();
           caches.open(CACHE_NAME).then((c) => c.put(req, copy));
         }

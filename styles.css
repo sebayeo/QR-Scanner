@@ -258,9 +258,14 @@ input { font-family: inherit; }
   border-radius: 18px;
   text-align: center;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  /* pointer-events 활성: 숨겨진 탭 핸들러 동작용. 시각 피드백 없음(:active/:hover 미정의). */
   user-select: none;
   -webkit-user-select: none;
+  transform: scale(1);
+  transition: transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.counter-card:active,
+.counter-card.tapping {
+  transform: scale(1.07);
 }
 .counter-label { font-size: 12px; opacity: 0.75; letter-spacing: 0.05em; }
 .counter-value {

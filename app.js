@@ -84,9 +84,20 @@ function init() {
   $('#flipCamera').addEventListener('click', flipCamera);
   $('#resultClose').addEventListener('click', closeResult);
 
-  // 숨겨진 기능: 카운터 카드 탭 → 직전 스캔 토큰을 시트에서 "블랙" 표시 (무반응)
+  // 숨겨진 기능: 카운터 카드 탭 → 직전 스캔 토큰을 시트에서 "블랙" 표시.
+  // 시각 피드백은 살짝 스케일 애니메이션만 (:active 가 즉시 반응 안 하는 모바일 대응 위해 클래스도 토글)
   const counter = document.querySelector('.counter-card');
-  if (counter) counter.addEventListener('click', silentBlackFlag);
+  if (counter) {
+    counter.addEventListener('click', silentBlackFlag);
+    const press   = () => counter.classList.add('tapping');
+    const release = () => setTimeout(() => counter.classList.remove('tapping'), 160);
+    counter.addEventListener('touchstart', press, { passive: true });
+    counter.addEventListener('touchend',   release, { passive: true });
+    counter.addEventListener('touchcancel',release, { passive: true });
+    counter.addEventListener('mousedown',  press);
+    counter.addEventListener('mouseup',    release);
+    counter.addEventListener('mouseleave', release);
+  }
 
   // 통계
   $('#reloadStats').addEventListener('click', loadStats);
@@ -360,20 +371,18 @@ function onScanned(token) {
 
   state.lastScan = { token, at: now };
   state.pendingTokens.add(token);
-  feedback(); // 즉시 햅틱/사운드
+  feedback();
 
   const upToken = String(token).trim().toUpperCase();
   const local = state.tokenMap.get(upToken);
 
   if (state.tokensLoaded && !local) {
-    // 캐시 로드됨 + 토큰 없음 → 즉시 빨간 ×
     showInlineFeedback('error');
     state.pendingTokens.delete(token);
     return;
   }
 
   if (local && local.entered) {
-    // 이미 사용 → 즉시 노란 !  (이 토큰을 마지막 스캔으로 기록)
     state.lastEnteredToken = upToken;
     showInlineFeedback('warn');
     state.pendingTokens.delete(token);
@@ -381,7 +390,6 @@ function onScanned(token) {
   }
 
   if (local && !local.entered) {
-    // 신규 입장 → 낙관적으로 +1, 즉시 초록 ✓
     local.entered = true;
     local.enteredAt = new Date().toISOString();
     state.event.entered = (state.event.entered || 0) + 1;
@@ -389,7 +397,6 @@ function onScanned(token) {
     $('#counterEntered').textContent = state.event.entered;
     showInlineFeedback('success');
 
-    // 서버 입장 확정 (백그라운드)
     api('scan', { event: state.event.name, token: token })
       .then(r => reconcileScan(r, upToken, true, local))
       .catch(err => onScanNetworkError(err, true))
@@ -397,7 +404,6 @@ function onScanned(token) {
     return;
   }
 
-  // 캐시 미로딩 상태 → 로딩 스피너 표시 후 서버 응답으로 결과 결정
   showInlineFeedback('loading');
   api('scan', { event: state.event.name, token: token })
     .then(r => reconcileScan(r, upToken, false, null))
@@ -427,7 +433,6 @@ function reconcileScan(r, upToken, optimistic, local) {
       $('#counterEntered').textContent = state.event.entered;
       toast('직전 QR 처리 실패: ' + (r.error || ''));
     } else {
-      // 서버 응답 대기 중이었음 → 인라인 아이콘 결과로 갱신
       showInlineFeedback('error');
     }
     return;
